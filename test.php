@@ -45,9 +45,25 @@ function display_table($users = array()) {
     return $table;
 }
 /* TEST ZE API */
-function api_actions($action) {
-    
+function api_actions($action, $vars) {
+    $eekauth = get_auth_plugin('eek');
+    $actions = array('synccoursemembers', 'getoutcome', 'getoutcomes');
+    $result = '';
+    if (in_array($action, $actions)) {
+        switch($action) {
+            case 'synccoursemembers':
+                
+                break;
+            case 'getoutcome':
+                $result = $eekauth->getoutcome($vars['courseid'], $vars['useridnumber']);
+                break;
+            case 'getoutcomes':
+                $result = $eekauth->getoutcomes($vars['courseid']);
+                break;
+        }        
+    }
 }
+
 /* Draw action button */
 function action_button($action) {
     $actions = array('synccoursemembers', 'getoutcome', 'getoutcomes');
@@ -57,7 +73,11 @@ function action_button($action) {
 }
 
 /* POST AREA */
+print_r($_POST);
 if (isset($_POST['get_grade'])) {
+    $vars = $_POST;
+    $result = api_actions('getoutcome', $vars);
+} else if (isset($_POST['get_grades'])) {
     
 }
 ?>
@@ -68,6 +88,7 @@ if (isset($_POST['get_grade'])) {
     <body>
         Testing EEK Functionalities<br />
         <div class="course_sync">
+        Course sync<br />
         <form method="post" action="">
             <input type="text" name="usercount" value="1" size="10">
             <input type="submit" name="submit" value="Submit">
@@ -82,14 +103,18 @@ if (isset($_POST['get_grade'])) {
         }
         ?>
         </div>
+        <br />
         <div class="course_grade">
+            Get course grade for user<br />
             <form method="post" action="">
                 <input type="text" name="useridnumber" value="" size="10">
                 <input type="text" name="courseid" value="" size="10">
                 <input type="submit" name="get_grade" value="Submit">
             </form>
         </div>
+        <br />
         <div class="course_grades">
+            Get all course grades by courseid<br />
             <form method="post" action="">
                 <input type="text" name="courseid" value="" size="10">
                 <input type="submit" name="get_grades" value="Submit">
