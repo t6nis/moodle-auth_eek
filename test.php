@@ -1,5 +1,5 @@
 <?php 
-
+/* Generate users */
 function generate_users($count = 1) {
     
     $users = array(); 
@@ -22,8 +22,7 @@ function generate_users($count = 1) {
     
     return $users;
 }
-
-
+/* Table of users */
 function display_table($users = array()) {
     
     $table = '<table cellpadding="1" cellspacing="1" border="1">';
@@ -38,9 +37,29 @@ function display_table($users = array()) {
     }
     $table .= '</table>';
     
+    $table .= '<form method="post" action="">';
+    $table .= 'CourseID:<input type="text" name="courseid" value="">';
+    $table .= '<input type="submit" name="course" value="Send to Course">';
+    $table .= '</form>';
+    
     return $table;
 }
+/* TEST ZE API */
+function api_actions($action) {
+    
+}
+/* Draw action button */
+function action_button($action) {
+    $actions = array('synccoursemembers', 'getoutcome', 'getoutcomes');
+    if (in_array($action, $actions)) {
+        
+    }
+}
 
+/* POST AREA */
+if (isset($_POST['get_grade'])) {
+    
+}
 ?>
 <html>
     <head>
@@ -48,6 +67,7 @@ function display_table($users = array()) {
     </head>
     <body>
         Testing EEK Functionalities<br />
+        <div class="course_sync">
         <form method="post" action="">
             <input type="text" name="usercount" value="1" size="10">
             <input type="submit" name="submit" value="Submit">
@@ -61,5 +81,19 @@ function display_table($users = array()) {
             print display_table($users);
         }
         ?>
+        </div>
+        <div class="course_grade">
+            <form method="post" action="">
+                <input type="text" name="useridnumber" value="" size="10">
+                <input type="text" name="courseid" value="" size="10">
+                <input type="submit" name="get_grade" value="Submit">
+            </form>
+        </div>
+        <div class="course_grades">
+            <form method="post" action="">
+                <input type="text" name="courseid" value="" size="10">
+                <input type="submit" name="get_grades" value="Submit">
+            </form>
+        </div>
     </body>
 </html>
