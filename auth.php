@@ -111,8 +111,7 @@ class auth_plugin_eek extends auth_plugin_base {
 
         $instance = $DB->get_record('enrol', array('courseid'=>$course->id, 'enrol'=>'manual'), '*', MUST_EXIST);
         $context = context_course::instance($instance->courseid);
-        $role = $DB->get_record('role', array('shortname'=>'student'), '*', MUST_EXIST);
-        $enrolled_users = $this->eek_auth_get_users($role, $context, '');
+        $role = $DB->get_record('role', array('shortname'=>'student'), '*', MUST_EXIST);        
         $processed_users = array();
         
         //Enrol users
@@ -143,39 +142,16 @@ class auth_plugin_eek extends auth_plugin_base {
             }
             array_push($processed_users, $value->idnumber);
         }
-        
+
         //Unenrol and Sync users with SIS
-        foreach ($enrolled_users as $key => $value) {
+        $enrolled_users = get_enrolled_users($context, '', '', 'u.id, u.idnumber, u.firstname, u.lastname');
+        foreach ($enrolled_users as $key => $value) {            
             if (!in_array($value->idnumber, $processed_users)) {
-                $manual_plugin->unenrol_user($instance, $user->id);
+                $manual_plugin->unenrol_user($instance, $value->id);
             }
         }
         
         return false;
-    }
-    
-    /**
-     * Find all user assignemnt of users for this role, on this context
-     * //Copied function from accesslib.php with minor modification
-     */
-    function eek_auth_get_users($role, $context, $enrol='') {
-        global $CFG, $DB;
-        
-        $params = array();
-        $enrol_type = "AND ra.component = :enrol";
-        $params['enrol'] = "$enrol";
-        $params['contextid'] = "$context->id";
-        $params['roleid'] = "$role->id";
-        
-        return $DB->get_records_sql("SELECT u.idnumber, u.id, u.firstname, u.lastname
-                                FROM {role_assignments} as ra
-                                LEFT JOIN
-                                    {user} as u
-                                ON
-                                    u.id = ra.userid
-                                WHERE ra.contextid = :contextid
-                                      $enrol_type
-                                      AND ra.roleid = :roleid", $params);
     }
     
     /*
