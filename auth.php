@@ -55,7 +55,7 @@ class auth_plugin_eek extends auth_plugin_base {
      */
     function syncuser($isikid, $type, $username, $password, $firstname, $lastname, $email, $country, $city, $deleted = 0) {
         global $CFG, $DB;
-        print_r($type);
+
         if (!$isikid || !$type || !$username || !$password || !$firstname || !$lastname || !$email) {
             return false;
         }
@@ -67,7 +67,7 @@ class auth_plugin_eek extends auth_plugin_base {
             $user = new Object();
             $user->auth = $type;
             $user->username = $username;
-            $user->password = AUTH_PASSWORD_NOT_CACHED;
+            $user->password = md5($password);
             $user->idnumber = $isikid; // This or some new field...
             $user->firstname = $firstname;
             $user->lastname = $lastname;
@@ -112,9 +112,12 @@ class auth_plugin_eek extends auth_plugin_base {
         $instance = $DB->get_record('enrol', array('courseid'=>$course->id, 'enrol'=>'manual'), '*', MUST_EXIST);
         $context = context_course::instance($instance->courseid);
         $role = $DB->get_record('role', array('shortname'=>'student'), '*', MUST_EXIST);
-
+        $enrolled_users = $this->eek_auth_get_users($role, $context, '');
+        $processed_users = array();
+        
+        //Enrol users
         foreach($members as $key => $value) {
-            $user = $DB->get_record('user', array('idnumber' => $value->idnumber, 'deleted' => '0'));
+            $user = $DB->get_record('user', array('idnumber' => $value->idnumber, 'deleted' => '0'));            
             if (!$user) {
                 if (empty($value->email)) {
                     //Email missing
@@ -128,20 +131,26 @@ class auth_plugin_eek extends auth_plugin_base {
                 $udata = $this->syncuser($value->idnumber, $value->type, $value->username, $value->password, $value->firstname, $value->lastname, $value->email, $value->country, $value->city, $value->deleted);
                 
                 if ($udata) {
-                    //enrol
                     $manual_plugin->enrol_user($instance, $udata->id, $role->id, 0, 0, ENROL_USER_ACTIVE);
                 } else {
-                    echo 'error creation';
+                    echo 'error creating user';
                     continue;
                 }
-            } else {
+            } else {                
                 if (!is_enrolled($context, $user)) {
-                    //enrol
                     $manual_plugin->enrol_user($instance, $user->id, $role->id, 0, 0, ENROL_USER_ACTIVE);
                 }
             }
-        }      
-
+            array_push($processed_users, $value->idnumber);
+        }
+        
+        //Unenrol and Sync users with SIS
+        foreach ($enrolled_users as $key => $value) {
+            if (!in_array($value->idnumber, $processed_users)) {
+                $manual_plugin->unenrol_user($instance, $user->id);
+            }
+        }
+        
         return false;
     }
     
@@ -153,14 +162,12 @@ class auth_plugin_eek extends auth_plugin_base {
         global $CFG, $DB;
         
         $params = array();
-        $enrol_type = '';
-        //get õis enrollments only
         $enrol_type = "AND ra.component = :enrol";
         $params['enrol'] = "$enrol";
         $params['contextid'] = "$context->id";
         $params['roleid'] = "$role->id";
         
-        return $DB->get_records_sql("SELECT u.id, u.idnumber, u.firstname, u.lastname
+        return $DB->get_records_sql("SELECT u.idnumber, u.id, u.firstname, u.lastname
                                 FROM {role_assignments} as ra
                                 LEFT JOIN
                                     {user} as u

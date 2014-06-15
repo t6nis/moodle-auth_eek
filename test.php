@@ -9,7 +9,7 @@ function generate_users($count = 1, $rand = true, $group = false) {
     for ($i = 1; $i <= $count; $i++) {
         $user = new stdClass();        
         $user->idnumber = ($rand == false ? $i : rand(0,1000));
-        $user->type = 'ldap';        
+        $user->type = 'manual';        
         $user->username = 'bot'.($rand == false ? $i : rand(0,1000));
         $user->password = 'changeme';
         $user->firstname = $user->username;
