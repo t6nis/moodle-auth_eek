@@ -25,8 +25,13 @@ if (!defined('MOODLE_INTERNAL')) {
     die('Direct access to this script is forbidden.'); // It must be included from a Moodle page
 }
 
+require_once($CFG->dirroot.'/grade/export/lib.php');
 require_once dirname(dirname(dirname(__FILE__))) . '/lib/authlib.php';
 require_once dirname(dirname(dirname(__FILE__))) . '/grade/querylib.php';
+
+require_once $CFG->libdir.'/enrollib.php';
+require_once $CFG->libdir.'/accesslib.php';
+require_once dirname(dirname(dirname(__FILE__))) . '/enrol/manual/lib.php';
 
 class auth_plugin_eek extends auth_plugin_base {
     
@@ -50,11 +55,11 @@ class auth_plugin_eek extends auth_plugin_base {
      */
     function syncuser($isikid, $type, $username, $password, $firstname, $lastname, $email, $country, $city, $deleted = 0) {
         global $CFG, $DB;
-        
+        print_r($type);
         if (!$isikid || !$type || !$username || !$password || !$firstname || !$lastname || !$email) {
             return false;
         }
-        
+       
         if (!$DB->record_exists('user', array('username'=>$username, 'confirmed' => 1, 'deleted' => 0)) &&
         !$DB->record_exists('user', array('email'=>$email, 'confirmed' => 1, 'deleted' => 0)) &&
         !$DB->record_exists('user', array('idnumber'=>$isikid, 'confirmed' => 1, 'deleted' => 0))
@@ -77,7 +82,7 @@ class auth_plugin_eek extends auth_plugin_base {
 
             if ($user->id = $DB->insert_record('user', $user)) {
                 //Success.. Maybe send an email notification upon creation?
-                return true;
+                return $user;
             } else {
                 //Failed to create user
                 return false;
@@ -91,10 +96,79 @@ class auth_plugin_eek extends auth_plugin_base {
     /*
      * Synchronize course members
      */
-    function synccoursemembers($courseid, $members, $group) {
-        print_r($courseid);
-        print_r($memebrs);
+    function synccoursemembers($courseid, $members, $group = false) {
+        global $DB;
+        
+        $members = unserialize($members);
+        
+        $course = $DB->get_record('course', array('id' => $courseid)); //get course data
+        
+        $manual_plugin = new enrol_manual_plugin();        
+        if (!$DB->record_exists('enrol', array('courseid'=>$course->id, 'enrol'=>'manual'))) {
+            // only one instance allowed, sorry
+            $manual_plugin->add_instance($course);
+        }
+
+        $instance = $DB->get_record('enrol', array('courseid'=>$course->id, 'enrol'=>'manual'), '*', MUST_EXIST);
+        $context = context_course::instance($instance->courseid);
+        $role = $DB->get_record('role', array('shortname'=>'student'), '*', MUST_EXIST);
+
+        foreach($members as $key => $value) {
+            $user = $DB->get_record('user', array('idnumber' => $value->idnumber, 'deleted' => '0'));
+            if (!$user) {
+                if (empty($value->email)) {
+                    //Email missing
+                    //$error_text .= '<b>'.get_string('auth_ois_email_missing', $msg_lang, $str_obj).'</b><br />';
+                    continue;                        
+                } else if ($chk_email = $DB->get_record('user', array('email' => $value->email, 'deleted' => '0'))) {
+                    //Preventing duplicate account creaton if email or identic idnumber(isikukood) already existing in moodle base
+                    //$error_text .= '<b>'.get_string('auth_ois_email_in_use', $msg_lang, $str_obj).'</b><br />';
+                    continue;
+                }                
+                $udata = $this->syncuser($value->idnumber, $value->type, $value->username, $value->password, $value->firstname, $value->lastname, $value->email, $value->country, $value->city, $value->deleted);
+                
+                if ($udata) {
+                    //enrol
+                    $manual_plugin->enrol_user($instance, $udata->id, $role->id, 0, 0, ENROL_USER_ACTIVE);
+                } else {
+                    echo 'error creation';
+                    continue;
+                }
+            } else {
+                if (!is_enrolled($context, $user)) {
+                    //enrol
+                    $manual_plugin->enrol_user($instance, $user->id, $role->id, 0, 0, ENROL_USER_ACTIVE);
+                }
+            }
+        }      
+
         return false;
+    }
+    
+    /**
+     * Find all user assignemnt of users for this role, on this context
+     * //Copied function from accesslib.php with minor modification
+     */
+    function eek_auth_get_users($role, $context, $enrol='') {
+        global $CFG, $DB;
+        
+        $params = array();
+        $enrol_type = '';
+        //get õis enrollments only
+        $enrol_type = "AND ra.component = :enrol";
+        $params['enrol'] = "$enrol";
+        $params['contextid'] = "$context->id";
+        $params['roleid'] = "$role->id";
+        
+        return $DB->get_records_sql("SELECT u.id, u.idnumber, u.firstname, u.lastname
+                                FROM {role_assignments} as ra
+                                LEFT JOIN
+                                    {user} as u
+                                ON
+                                    u.id = ra.userid
+                                WHERE ra.contextid = :contextid
+                                      $enrol_type
+                                      AND ra.roleid = :roleid", $params);
     }
     
     /*
@@ -129,7 +203,7 @@ class auth_plugin_eek extends auth_plugin_base {
         
         $course = $DB->get_record('course', array('id' => $courseid)); // Get course data
 
-        if (!$context = get_context_instance(CONTEXT_COURSE, $course->id)) {
+        if (!$context = context_course::instance($course->id)) {
             return false;
         }
 
