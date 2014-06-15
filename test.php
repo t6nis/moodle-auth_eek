@@ -1,17 +1,17 @@
 <?php 
 /* Generate users */
-function generate_users($count = 1) {
+function generate_users($count = 1, $rand = true) {
     
     $users = array(); 
-    
+        
     for ($i = 0; $i < $count; $i++) {
         $user = new stdClass();
-        $user->username = 'bot'.rand(0,1000);
+        $user->username = 'bot'.($rand == false ? $i : rand(0,1000));
         $user->password = 'changeme';
         $user->firstname = $user->username;
         $user->lastname = $user->username;
         $user->email = $user->username.'@botnet.botz123';
-        $user->idnumber = rand(0,1000);
+        $user->idnumber = ($rand == false ? $i : rand(0,1000));
         $user->country = 'Estonia';
         $user->city = 'Tartu';
         $user->policyagreed = 1;
@@ -39,6 +39,7 @@ function display_table($users = array()) {
     
     $table .= '<form method="post" action="">';
     $table .= 'CourseID:<input type="text" name="courseid" value="">';
+    $table .= '<input type="hidden" name="members" value="'.$users.'">';
     $table .= '<input type="submit" name="course" value="Send to Course">';
     $table .= '</form>';
     
@@ -52,7 +53,8 @@ function api_actions($action, $vars) {
     if (in_array($action, $actions)) {
         switch($action) {
             case 'synccoursemembers':
-                
+                $result = $eekauth->synccoursemembers($vars['courseid'], $vars['members'], $vars['groups']);
+                print_r($result);
                 break;
             case 'getoutcome':
                 $result = $eekauth->getoutcome($vars['courseid'], $vars['useridnumber']);
@@ -62,6 +64,7 @@ function api_actions($action, $vars) {
                 break;
         }        
     }
+    return $result;
 }
 
 /* Draw action button */
@@ -74,11 +77,16 @@ function action_button($action) {
 
 /* POST AREA */
 print_r($_POST);
+print_r('<br />');
 if (isset($_POST['get_grade'])) {
     $vars = $_POST;
     $result = api_actions('getoutcome', $vars);
 } else if (isset($_POST['get_grades'])) {
-    
+    $vars = $_POST;
+    $result = api_actions('getoutcomes', $vars);
+} else if (isset($_POST['synccoursemembers'])) {
+    $vars = $_POST;
+    $result = api_actions('synccoursemembers', $vars);
 }
 ?>
 <html>
@@ -91,11 +99,12 @@ if (isset($_POST['get_grade'])) {
         Course sync<br />
         <form method="post" action="">
             <input type="text" name="usercount" value="1" size="10">
+            <input type="checkbox" name="random" value="true" checked>
             <input type="submit" name="submit" value="Submit">
         </form>
         <?php 
-        if (isset($_POST['usercount'])) {
-            $users = generate_users($_POST['usercount']);
+        if (isset($_POST['usercount']) || isset($_POST['random'])) {
+            $users = generate_users($_POST['usercount'], $_POST['random']);
             print display_table($users);
         } else {
             $users = generate_users();

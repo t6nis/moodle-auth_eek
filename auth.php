@@ -92,7 +92,9 @@ class auth_plugin_eek extends auth_plugin_base {
      * Synchronize course members
      */
     function synccoursemembers($courseid, $members, $group) {
-        
+        print_r($courseid);
+        print_r($memebrs);
+        return false;
     }
     
     /*
