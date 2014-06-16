@@ -31,7 +31,7 @@ require_once dirname(dirname(dirname(__FILE__))) . '/grade/querylib.php';
 
 require_once $CFG->libdir.'/enrollib.php';
 require_once $CFG->libdir.'/accesslib.php';
-require_once dirname(dirname(dirname(__FILE__))) . '/enrol/manual/lib.php';
+require_once dirname(dirname(dirname(__FILE__))) . '/enrol/eek/lib.php';
 
 class auth_plugin_eek extends auth_plugin_base {
     
@@ -103,17 +103,25 @@ class auth_plugin_eek extends auth_plugin_base {
         
         $course = $DB->get_record('course', array('id' => $courseid)); //get course data
         
-        $manual_plugin = new enrol_manual_plugin();        
-        if (!$DB->record_exists('enrol', array('courseid'=>$course->id, 'enrol'=>'manual'))) {
+        $eek_plugin = new enrol_eek_plugin();        
+        if (!$DB->record_exists('enrol', array('courseid'=>$course->id, 'enrol'=>'eek'))) {
             // only one instance allowed, sorry
-            $manual_plugin->add_instance($course);
+            $eek_plugin->add_instance($course);
         }
 
-        $instance = $DB->get_record('enrol', array('courseid'=>$course->id, 'enrol'=>'manual'), '*', MUST_EXIST);
+        $instance = $DB->get_record('enrol', array('courseid'=>$course->id, 'enrol'=>'eek'), '*', MUST_EXIST);
         $context = context_course::instance($instance->courseid);
         $role = $DB->get_record('role', array('shortname'=>'student'), '*', MUST_EXIST);        
         $processed_users = array();
-        
+        /*
+        $enrol_eek = '';
+        $instances = enrol_get_instances($course->id, true);
+        foreach($instances as $instance) {
+            if ($instance->enrol == 'eek') {
+                $enrol_eek = $instance;
+            }
+        }
+        */
         //Enrol users
         foreach($members as $key => $value) {
             $user = $DB->get_record('user', array('idnumber' => $value->idnumber, 'deleted' => '0'));            
@@ -130,14 +138,14 @@ class auth_plugin_eek extends auth_plugin_base {
                 $udata = $this->syncuser($value->idnumber, $value->type, $value->username, $value->password, $value->firstname, $value->lastname, $value->email, $value->country, $value->city, $value->deleted);
                 
                 if ($udata) {
-                    $manual_plugin->enrol_user($instance, $udata->id, $role->id, 0, 0, ENROL_USER_ACTIVE);
+                    $eek_plugin->enrol_user($instance, $udata->id, $role->id, 0, 0, ENROL_USER_ACTIVE);
                 } else {
-                    echo 'error creating user';
+                    //echo 'error creating user';
                     continue;
                 }
             } else {                
                 if (!is_enrolled($context, $user)) {
-                    $manual_plugin->enrol_user($instance, $user->id, $role->id, 0, 0, ENROL_USER_ACTIVE);
+                    $eek_plugin->enrol_user($instance, $user->id, $role->id, 0, 0, ENROL_USER_ACTIVE);
                 }
             }
             array_push($processed_users, $value->idnumber);
@@ -147,7 +155,7 @@ class auth_plugin_eek extends auth_plugin_base {
         $enrolled_users = get_enrolled_users($context, '', '', 'u.id, u.idnumber, u.firstname, u.lastname');
         foreach ($enrolled_users as $key => $value) {            
             if (!in_array($value->idnumber, $processed_users)) {
-                $manual_plugin->unenrol_user($instance, $value->id);
+                $eek_plugin->unenrol_user($instance, $value->id);
             }
         }
         
