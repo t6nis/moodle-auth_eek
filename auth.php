@@ -88,7 +88,19 @@ class auth_plugin_eek extends auth_plugin_base {
                 return false;
             }
         } else {
-            //Sorry.. duplicate user warning
+            //Update existing user
+            $user = $DB->get_record('user', array('idnumber' => $isikid, 'confirmed' => 1, 'deleted' => 0));
+            if (!$user) {
+                //If cant find user by idnumber
+                $user = $DB->get_record('user', array('username' => $username, 'confirmed' => 1, 'deleted' => 0));
+            }
+            /*Fields to be updated..*/
+            /*
+            $user->firstname = $firstname;
+            $user->lastname = $lastname;
+            $user->country = $country;
+            $user->city = $city;
+            */
             return false;
         }
     }
