@@ -106,14 +106,56 @@ class auth_plugin_eek extends auth_plugin_base {
     }
     
     /*
+     * Synchronize groups (add,delete)
+     */
+    function syncgroups($courseshortname, $groups) {
+        
+        $course = $DB->get_record('course', array('shortname' => $courseshortname)); //get course data
+
+        //First we check existing groups and delete unused/empty OIS groups
+        $allgroups = groups_get_all_groups($course->id, 0, 0, 'id, idnumber');
+
+        foreach ($allgroups as $key => $value) {
+            if (!empty($value->idnumber)) {
+                if (!in_array($value->idnumber, array_keys($groups))) {
+                    $group_members = groups_get_members($value->id);
+                    if (count($group_members) < 1) {
+                        groups_delete_group($value->id);
+                    }
+                }
+            }
+        }
+
+        //Now lets create new groups if neccessary..
+        foreach($groups as $key => $value) {
+            
+            cache_helper::invalidate_by_definition('core', 'groupdata', array(), array($course->id)); //Clear group cache
+            
+            $groupbyidnumber = groups_get_group_by_idnumber($course->id, $key);
+            
+            if (!$groupbyidnumber) {
+                $data = new stdClass();
+                $data->name = $value;
+                $data->idnumber = $key;
+                $data->courseid = $course->id;
+                $data->descriptionformat = 1;
+                $data->enrolmentkey = $value;
+                groups_create_group($data, false, false);
+            } else {
+                continue;
+            }            
+        }
+    }
+    
+    /*
      * Synchronize course members
      */
-    function synccoursemembers($courseid, $members, $group = false) {
+    function synccoursemembers($courseshortname, $members, $group = false) {
         global $DB;
         
         $members = unserialize($members);
         
-        $course = $DB->get_record('course', array('id' => $courseid)); //get course data
+        $course = $DB->get_record('course', array('shortname' => $courseshortname)); //get course data
         
         $eek_plugin = new enrol_eek_plugin();        
         if (!$DB->record_exists('enrol', array('courseid'=>$course->id, 'enrol'=>'eek'))) {
@@ -151,6 +193,14 @@ class auth_plugin_eek extends auth_plugin_base {
                 
                 if ($udata) {
                     $eek_plugin->enrol_user($instance, $udata->id, $role->id, 0, 0, ENROL_USER_ACTIVE);
+                    //Add to group if required
+                    if (!empty($group)) {
+                        //add user to group if group exists
+                        $groupinfo = groups_get_group_by_idnumber($course->id, $group);
+                        if (!empty($groupinfo)) {
+                            groups_add_member($groupinfo->id, $udata->id);
+                        }
+                    }
                 } else {
                     //echo 'error creating user';
                     continue;
@@ -158,6 +208,14 @@ class auth_plugin_eek extends auth_plugin_base {
             } else {                
                 if (!is_enrolled($context, $user)) {
                     $eek_plugin->enrol_user($instance, $user->id, $role->id, 0, 0, ENROL_USER_ACTIVE);
+                    //Add to group if required
+                    if (!empty($group)) {
+                        //add user to group if group exists
+                        $groupinfo = groups_get_group_by_idnumber($course->id, $group);
+                        if (!empty($groupinfo)) {
+                            groups_add_member($groupinfo->id, $udata->id);
+                        }
+                    }
                 }
             }
             array_push($processed_users, $value->idnumber);
@@ -184,12 +242,13 @@ class auth_plugin_eek extends auth_plugin_base {
     /*
      * Get a users "Course Total" grade
      */
-    function getoutcome($courseid, $isikid) {
+    function getoutcome($courseshortname, $isikid) {
         global $DB;
         
         $user = $DB->get_record('user', array('idnumber' => $isikid, 'deleted' => '0')); // Moodle user object
+        $course = $DB->get_record('course', array('shortname' => $courseshortname)); //get course data
         
-        $grade = grade_get_course_grade($user->id, $courseid); // User "Course Total" grade
+        $grade = grade_get_course_grade($user->id, $course->id); // User "Course Total" grade
         
         $usergrade = new Object();
         $usergrade->grade = $grade->grade;
@@ -201,10 +260,10 @@ class auth_plugin_eek extends auth_plugin_base {
     /*
      * Get all "Course Total" grades from a course
      */
-    function getoutcomes($courseid) {
+    function getoutcomes($courseshortname) {
         global $DB;
         
-        $course = $DB->get_record('course', array('id' => $courseid)); // Get course data
+        $course = $DB->get_record('course', array('shortname' => $courseshortname)); // Get course data
 
         if (!$context = context_course::instance($course->id)) {
             return false;

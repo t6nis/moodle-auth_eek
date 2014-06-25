@@ -43,7 +43,7 @@ function display_table($users = array()) {
     $table .= '</table>';
 
     $table .= '<form method="post" action="">';
-    $table .= 'CourseID:<input type="text" name="courseid" value="">';
+    $table .= 'CourseShortname:<input type="text" name="courseid" value="">';
     $table .= '<input type="hidden" name="members" value="'.htmlentities(serialize($users)).'">';
     $table .= '<input type="submit" name="synccoursemembers" value="Send to Course">';
     $table .= '</form>';
@@ -131,7 +131,7 @@ if (isset($_POST['get_grade'])) {
         </div>
         <br />
         <div class="course_grades">
-            Get all course grades by courseid<br />
+            Get all course grades by course shortname<br />
             <form method="post" action="">
                 <input type="text" name="courseid" value="" size="10">
                 <input type="submit" name="get_grades" value="Submit">
