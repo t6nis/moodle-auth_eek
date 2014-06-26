@@ -15,7 +15,7 @@
 // You should have received a copy of the GNU General Public License
 // along with Moodle.  If not, see <http://www.gnu.org/licenses/>.
 
-/*
+/**
  * @package auth_eek
  * @copyright 2014 Codespot
  * @author Tõnis Tartes <tonis.tartes@gmail.com>
@@ -38,7 +38,7 @@ class auth_plugin_eek extends auth_plugin_base {
     private $notice_msg = '';
     private $error_msg = '';
     
-    /*
+    /**
      * Init
      */
     function auth_plugin_eek() {
@@ -46,13 +46,23 @@ class auth_plugin_eek extends auth_plugin_base {
         $this->config = get_config('auth/eek');
     }
     
-    /*
-     * This class aint intendend to login to moodle, must always come up as false
+    /**
+     * User login must always return false.
+     * 
+     * @param type $username
+     * @param type $password
+     * @return boolean
      */
     function user_login($username, $password) {
         return false; //must fail always
     }
     
+    /**
+     * String helper for nice logging messages.
+     * 
+     * @param type $user
+     * @return object
+     */
     function logging_helper($user) {
         
         $str = new object();
@@ -65,6 +75,12 @@ class auth_plugin_eek extends auth_plugin_base {
     /**
      * Find all user assignemnt of users for this role, on this context
      * //Copied function from accesslib.php with minor modification
+     * @global type $CFG
+     * @global type $DB
+     * @param type $role
+     * @param type $context
+     * @param type $enrol
+     * @return type
      */
     function eek_enrolled_users($role, $context, $enrol='') {
         global $CFG, $DB;
@@ -88,8 +104,22 @@ class auth_plugin_eek extends auth_plugin_base {
                                       AND ra.roleid = :roleid", $params);
     }
     
-    /*
+    /**
      * Automatic user creation
+     * 
+     * @global type $CFG
+     * @global type $DB
+     * @param type $isikid
+     * @param type $type
+     * @param type $username
+     * @param type $password
+     * @param type $firstname
+     * @param type $lastname
+     * @param type $email
+     * @param type $country
+     * @param type $city
+     * @param type $deleted
+     * @return \Object|boolean
      */
     function syncuser($isikid, $type, $username, $password, $firstname, $lastname, $email, $country, $city, $deleted = 0) {
         global $CFG, $DB;
@@ -151,8 +181,11 @@ class auth_plugin_eek extends auth_plugin_base {
         }
     }
     
-    /*
+    /**
      * Synchronize groups (add,delete)
+     * 
+     * @param type $courseshortname
+     * @param type $groups
      */
     function syncgroups($courseshortname, $groups) {
         
@@ -193,8 +226,14 @@ class auth_plugin_eek extends auth_plugin_base {
         }
     }
     
-    /*
+    /**
      * Synchronize course members
+     * 
+     * @global type $DB
+     * @param type $courseshortname
+     * @param type $members
+     * @param type $group
+     * @return type
      */
     function synccoursemembers($courseshortname, $members, $group = false) {
         global $DB;
@@ -284,15 +323,21 @@ class auth_plugin_eek extends auth_plugin_base {
         return $this->error_msg.$this->notice_msg;
     }
     
-    /*
-     * SSO..
+    /**
+     * SSO todo..
+     * @param type $username
      */
     function ssorequest($username) {
         //To-Do
     }
     
-    /*
+    /**
      * Get a users "Course Total" grade
+     * 
+     * @global type $DB
+     * @param type $courseshortname
+     * @param type $isikid
+     * @return type
      */
     function getoutcome($courseshortname, $isikid) {
         global $DB;
@@ -309,8 +354,12 @@ class auth_plugin_eek extends auth_plugin_base {
         return $grade;
     }
     
-    /*
+    /**
      * Get all "Course Total" grades from a course
+     * 
+     * @global type $DB
+     * @param type $courseshortname
+     * @return \Object|boolean
      */
     function getoutcomes($courseshortname) {
         global $DB;
