@@ -35,6 +35,9 @@ require_once dirname(dirname(dirname(__FILE__))) . '/enrol/eek/lib.php';
 
 class auth_plugin_eek extends auth_plugin_base {
     
+    private $notice_msg = '';
+    private $error_msg = '';
+    
     /*
      * Init
      */
@@ -50,6 +53,41 @@ class auth_plugin_eek extends auth_plugin_base {
         return false; //must fail always
     }
     
+    function logging_helper($user) {
+        
+        $str = new object();
+        $str->firstname = $user->firstname;
+        $str->lastname = $user->lastname;
+        
+        return $str;
+    }  
+    
+    /**
+     * Find all user assignemnt of users for this role, on this context
+     * //Copied function from accesslib.php with minor modification
+     */
+    function eek_enrolled_users($role, $context, $enrol='') {
+        global $CFG, $DB;
+        
+        $params = array();
+        $enrol_type = '';
+        
+        $enrol_type = "AND ra.component = :enrol";
+        $params['enrol'] = $enrol;
+        $params['contextid'] = $context->id;
+        $params['roleid'] = $role->id;
+        
+        return $DB->get_records_sql("SELECT u.idnumber, u.id, u.firstname, u.lastname
+                                FROM {role_assignments} as ra
+                                LEFT JOIN
+                                    {user} as u
+                                ON
+                                    u.id = ra.userid
+                                WHERE ra.contextid = :contextid
+                                      $enrol_type
+                                      AND ra.roleid = :roleid", $params);
+    }
+    
     /*
      * Automatic user creation
      */
@@ -59,7 +97,14 @@ class auth_plugin_eek extends auth_plugin_base {
         if (!$isikid || !$type || !$username || !$password || !$firstname || !$lastname || !$email) {
             return false;
         }
-       
+        
+        //Logging helper
+        $helper = new object();
+        $helper->firstname = $firstname;
+        $helper->lastname = $lastname;
+        
+        $msg = $this->logging_helper($helper);
+                
         if (!$DB->record_exists('user', array('username'=>$username, 'confirmed' => 1, 'deleted' => 0)) &&
         !$DB->record_exists('user', array('email'=>$email, 'confirmed' => 1, 'deleted' => 0)) &&
         !$DB->record_exists('user', array('idnumber'=>$isikid, 'confirmed' => 1, 'deleted' => 0))
@@ -84,8 +129,8 @@ class auth_plugin_eek extends auth_plugin_base {
                 //Success.. Maybe send an email notification upon creation?
                 return $user;
             } else {
-                //Failed to create user
-                return false;
+                $this->error_msg .= get_string('auth_eek_user_creation_failed', 'auth_eek', $msg).'<br />';
+                return $this->error_msg;
             }
         } else {
             //Update existing user
@@ -101,7 +146,8 @@ class auth_plugin_eek extends auth_plugin_base {
             $user->country = $country;
             $user->city = $city;
             */
-            return false;
+            $this->error_msg .= get_string('auth_eek_user_update_failed', 'auth_eek', $msg).'<br />';
+            return $this->error_msg;
         }
     }
     
@@ -157,9 +203,15 @@ class auth_plugin_eek extends auth_plugin_base {
         
         $course = $DB->get_record('course', array('shortname' => $courseshortname)); //get course data
         
+        if (!$course) {
+            //Course does not exist!
+            $this->error_msg .= get_string('auth_eek_course_missing', 'auth_eek').'<br />';
+            return $this->error_msg;
+        }
+        
         $eek_plugin = new enrol_eek_plugin();        
         if (!$DB->record_exists('enrol', array('courseid'=>$course->id, 'enrol'=>'eek'))) {
-            // only one instance allowed, sorry
+            //Only one instance allowed, sorry
             $eek_plugin->add_instance($course);
         }
 
@@ -167,32 +219,28 @@ class auth_plugin_eek extends auth_plugin_base {
         $context = context_course::instance($instance->courseid);
         $role = $DB->get_record('role', array('shortname'=>'student'), '*', MUST_EXIST);        
         $processed_users = array();
-        /*
-        $enrol_eek = '';
-        $instances = enrol_get_instances($course->id, true);
-        foreach($instances as $instance) {
-            if ($instance->enrol == 'eek') {
-                $enrol_eek = $instance;
-            }
-        }
-        */
+
         //Enrol users
         foreach($members as $key => $value) {
-            $user = $DB->get_record('user', array('idnumber' => $value->idnumber, 'deleted' => '0'));            
+            $user = $DB->get_record('user', array('idnumber' => $value->idnumber, 'deleted' => '0'));
+            
+            $msg = $this->logging_helper($value);
+            
             if (!$user) {
                 if (empty($value->email)) {
                     //Email missing
-                    //$error_text .= '<b>'.get_string('auth_ois_email_missing', $msg_lang, $str_obj).'</b><br />';
+                    $this->error_msg .= get_string('auth_eek_email_missing', 'auth_eek', $msg).'<br />';
                     continue;                        
                 } else if ($chk_email = $DB->get_record('user', array('email' => $value->email, 'deleted' => '0'))) {
                     //Preventing duplicate account creaton if email or identic idnumber(isikukood) already existing in moodle base
-                    //$error_text .= '<b>'.get_string('auth_ois_email_in_use', $msg_lang, $str_obj).'</b><br />';
+                    $this->error_msg .= get_string('auth_eek_email_in_use', 'auth_eek', $msg).'<br />';
                     continue;
                 }                
                 $udata = $this->syncuser($value->idnumber, $value->type, $value->username, $value->password, $value->firstname, $value->lastname, $value->email, $value->country, $value->city, $value->deleted);
                 
                 if ($udata) {
                     $eek_plugin->enrol_user($instance, $udata->id, $role->id, 0, 0, ENROL_USER_ACTIVE);
+                    $this->notice_msg .= get_string('auth_eek_user_enrolled', 'auth_eek', $msg).'<br />';
                     //Add to group if required
                     if (!empty($group)) {
                         //add user to group if group exists
@@ -202,12 +250,13 @@ class auth_plugin_eek extends auth_plugin_base {
                         }
                     }
                 } else {
-                    //echo 'error creating user';
+                    $this->error_msg .= get_string('auth_eek_user_creation_failed', 'auth_eek', $msg).'<br />';
                     continue;
                 }
             } else {                
-                if (!is_enrolled($context, $user)) {
+                if (!is_enrolled($context, $user)) {                    
                     $eek_plugin->enrol_user($instance, $user->id, $role->id, 0, 0, ENROL_USER_ACTIVE);
+                    $this->notice_msg .= get_string('auth_eek_user_enrolled', 'auth_eek', $msg).'<br />';
                     //Add to group if required
                     if (!empty($group)) {
                         //add user to group if group exists
@@ -222,14 +271,17 @@ class auth_plugin_eek extends auth_plugin_base {
         }
 
         //Unenrol and Sync users with SIS
-        $enrolled_users = get_enrolled_users($context, '', '', 'u.id, u.idnumber, u.firstname, u.lastname');
-        foreach ($enrolled_users as $key => $value) {            
-            if (!in_array($value->idnumber, $processed_users)) {
+        //get_enrolled_users($context, '', '', 'u.idnumber, u.id, u.firstname, u.lastname');
+        $enrolled_users = $this->eek_enrolled_users($role, $context, 'enrol_eek');
+        foreach ($enrolled_users as $key => $value) {      
+            $msg = $this->logging_helper($value);
+            if (!in_array($value->idnumber, array_keys($processed_users))) {                
                 $eek_plugin->unenrol_user($instance, $value->id);
+                $this->notice_msg .= get_string('auth_eek_user_unenrolled', 'auth_eek', $msg).'<br />';
             }
         }
         
-        return false;
+        return $this->error_msg.$this->notice_msg;
     }
     
     /*
