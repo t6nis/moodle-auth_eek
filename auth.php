@@ -157,6 +157,7 @@ class auth_plugin_eek extends auth_plugin_base {
 
             if ($user->id = $DB->insert_record('user', $user)) {
                 //Success.. Maybe send an email notification upon creation?
+                $this->notice_msg .= get_string('auth_eek_user_created', 'auth_eek', $msg).'<br />';
                 return $user;
             } else {
                 $this->error_msg .= get_string('auth_eek_user_creation_failed', 'auth_eek', $msg).'<br />';
@@ -170,14 +171,18 @@ class auth_plugin_eek extends auth_plugin_base {
                 $user = $DB->get_record('user', array('username' => $username, 'confirmed' => 1, 'deleted' => 0));
             }
             /*Fields to be updated..*/
-            /*
             $user->firstname = $firstname;
             $user->lastname = $lastname;
             $user->country = $country;
             $user->city = $city;
-            */
-            $this->error_msg .= get_string('auth_eek_user_update_failed', 'auth_eek', $msg).'<br />';
-            return $this->error_msg;
+
+            if ($user->id = $DB->update_record('user', $user)) {
+                $this->notice_msg .= get_string('auth_eek_user_updated', 'auth_eek', $msg).'<br />';
+                return $user;
+            } else {
+                $this->error_msg .= get_string('auth_eek_user_update_failed', 'auth_eek', $msg).'<br />';
+                return $this->error_msg;
+            }
         }
     }
     
@@ -191,7 +196,7 @@ class auth_plugin_eek extends auth_plugin_base {
         
         $course = $DB->get_record('course', array('shortname' => $courseshortname)); //get course data
 
-        //First we check existing groups and delete unused/empty OIS groups
+        //First we check existing groups and delete unused/empty groups
         $allgroups = groups_get_all_groups($course->id, 0, 0, 'id, idnumber');
 
         foreach ($allgroups as $key => $value) {
@@ -310,7 +315,6 @@ class auth_plugin_eek extends auth_plugin_base {
         }
 
         //Unenrol and Sync users with SIS
-        //get_enrolled_users($context, '', '', 'u.idnumber, u.id, u.firstname, u.lastname');
         $enrolled_users = $this->eek_enrolled_users($role, $context, 'enrol_eek');
         foreach ($enrolled_users as $key => $value) {      
             $msg = $this->logging_helper($value);
