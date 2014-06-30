@@ -21,7 +21,7 @@ function generate_users($count = 1, $rand = true, $group = false) {
         $user->policyagreed = 1;
         $user->confirmed = 1;
         $user->timecreated = time();
-        $user->group = '';        
+        $user->group = 1;        
         $users[$i] = $user; 
     }
     
@@ -58,6 +58,7 @@ function api_actions($action, $vars) {
     if (in_array($action, $actions)) {
         switch($action) {
             case 'synccoursemembers':
+                $eekauth->syncgroups($vars['courseid'], array(1 => 'grupp 1'));
                 $result = $eekauth->synccoursemembers($vars['courseid'], $vars['members']);
                 break;
             case 'getoutcome':
