@@ -53,7 +53,7 @@ function display_table($users = array()) {
 /* TEST ZE API */
 function api_actions($action, $vars) {
     $eekauth = get_auth_plugin('eek');    
-    $actions = array('synccoursemembers', 'getoutcome', 'getoutcomes');
+    $actions = array('synccoursemembers', 'getoutcome', 'getoutcomes', 'ssologin');
     $result = '';
     if (in_array($action, $actions)) {
         switch($action) {
@@ -66,6 +66,9 @@ function api_actions($action, $vars) {
                 break;
             case 'getoutcomes':
                 $result = $eekauth->getoutcomes($vars['courseid']);
+                break;
+            case 'ssologin':
+                $result = $eekauth->ssologin($vars['username']);
                 break;
         }        
     }
@@ -100,6 +103,10 @@ if (isset($_POST['get_grade'])) {
 } else if (isset($_POST['synccoursemembers'])) {
     $vars = $_POST;
     $result = api_actions('synccoursemembers', $vars);
+    print_r($result);
+} else if (isset($_POST['ssologin'])) {
+    $vars = $_POST;
+    $result = api_actions('ssologin', $vars);
     print_r($result);
 }
 ?>
@@ -136,6 +143,13 @@ if (isset($_POST['get_grade'])) {
             <form method="post" action="">
                 <input type="text" name="courseid" value="" size="10">
                 <input type="submit" name="get_grades" value="Submit">
+            </form>
+        </div>
+        <div class="ssotest">
+            Simulate SSO<br />
+            <form method="post" action="">
+                <input type="text" name="username" value="" size="10">
+                <input type="submit" name="ssologin" value="Submit">
             </form>
         </div>
     </body>

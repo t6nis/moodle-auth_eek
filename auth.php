@@ -144,7 +144,7 @@ class auth_plugin_eek extends auth_plugin_base {
             $user = new Object();
             $user->auth = $type;
             $user->username = $username;
-            $user->password = AUTH_PASSWORD_NOT_CACHED;
+            $user->password = $password;
             $user->idnumber = $isikid; // This or some new field...
             $user->firstname = $firstname;
             $user->lastname = $lastname;
@@ -356,11 +356,17 @@ class auth_plugin_eek extends auth_plugin_base {
     }
     
     /**
-     * SSO todo..
+     * Simulate SSO login.
      * @param type $username
      */
-    function ssorequest($username) {
-        //To-Do
+    function ssologin($username) {
+        global $CFG, $DB, $USER;
+        $usertologin = $DB->get_record('user', array('username' => $username), $fields='*');
+        if ($usertologin !== false && !has_capability('moodle/site:config', context_system::instance(), $usertologin)) {
+            $USER = complete_user_login($usertologin);
+            return true;
+        } 
+        return false;
     }
     
     /**
