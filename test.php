@@ -7,21 +7,21 @@ function generate_users($count = 1, $rand = true, $group = false) {
     $gi = 0;
 
     for ($i = 1; $i <= $count; $i++) {
-        $user = new stdClass();        
-        $user->idnumber = ($rand == false ? $i : rand(0,1000));
-        $user->type = 'manual';        
-        $user->username = 'bot'.($rand == false ? $i : rand(0,1000));
-        $user->password = 'changeme';
-        $user->firstname = $user->username;
-        $user->lastname = $user->username;
-        $user->email = $user->username.'@botnet.botz123';        
-        $user->country = 'EE';
-        $user->city = 'Tartu';
-        $user->deleted = 0;
-        $user->policyagreed = 1;
-        $user->confirmed = 1;
-        $user->timecreated = time();
-        $user->group = 1;        
+        $user = array();        
+        $user['idnumber'] = ($rand == false ? $i : rand(0,1000));
+        $user['type'] = 'manual';        
+        $user['username'] = 'bot'.($rand == false ? $i : rand(0,1000));
+        $user['password'] = 'gsdfgsdfg';
+        $user['firstname'] = $user['username'];
+        $user['lastname'] = $user['username'];
+        $user['email'] = $user['username'].'@botnet.botz123';        
+        $user['country'] = 'EE';
+        $user['city'] = 'Tartu';
+        $user['deleted'] = 0;
+        $user['policyagreed'] = 1;
+        $user['confirmed'] = 1;
+        $user['timecreated'] = time();
+        $user['group'] = 1;        
         $users[$i] = $user; 
     }
     
@@ -44,7 +44,7 @@ function display_table($users = array()) {
 
     $table .= '<form method="post" action="">';
     $table .= 'CourseShortname:<input type="text" name="courseid" value="">';
-    $table .= '<input type="hidden" name="members" value="'.htmlentities(serialize($users)).'">';
+    //$table .= '<input type="hidden" name="members" value="'.htmlentities($users).'">';
     $table .= '<input type="submit" name="synccoursemembers" value="Send to Course">';
     $table .= '</form>';
     
@@ -58,8 +58,9 @@ function api_actions($action, $vars) {
     if (in_array($action, $actions)) {
         switch($action) {
             case 'synccoursemembers':
-                $eekauth->syncgroups($vars['courseid'], array(1 => 'grupp 1'));
-                $result = $eekauth->synccoursemembers($vars['courseid'], $vars['members']);
+                $members = generate_users(3, true);
+                $eekauth->syncgroups($vars['courseid'], array(1 => 'grupp 1', 2 => 'grupp 2', 3 => 'grupp 3'));
+                $result = $eekauth->synccoursemembers($vars['courseid'], $members, 2);
                 break;
             case 'getoutcome':
                 $result = $eekauth->getoutcome($vars['courseid'], $vars['useridnumber']);

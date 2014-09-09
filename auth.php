@@ -40,7 +40,7 @@ class auth_plugin_eek extends auth_plugin_base {
     private $error_msg = '';
     
     /**
-     * Init
+     * Init.
      */
     function auth_plugin_eek() {
         $this->authtype = 'eek';
@@ -64,18 +64,16 @@ class auth_plugin_eek extends auth_plugin_base {
      * @param type $user
      * @return object
      */
-    function logging_helper($user) {
-        
+    function logging_helper($user, $group = '') {
         $str = new object();
-        $str->firstname = $user->firstname;
-        $str->lastname = $user->lastname;
-        $str->group = (empty($user->group) ? '' : $user->group);
-        
+        $str->firstname = $user['firstname'];
+        $str->lastname = $user['lastname'];
+        $str->group = (empty($group) ? '' : $group);
         return $str;
     }  
     
     /**
-     * Find all user assignemnt of users for this role, on this context
+     * Find all user assignemnt of users for this role, on this context.
      * //Copied function from accesslib.php with minor modification
      * @global type $CFG
      * @global type $DB
@@ -107,7 +105,7 @@ class auth_plugin_eek extends auth_plugin_base {
     }
     
     /**
-     * Automatic user creation
+     * Automatic user creation.
      * 
      * @global type $CFG
      * @global type $DB
@@ -130,10 +128,10 @@ class auth_plugin_eek extends auth_plugin_base {
             return false;
         }
         
-        //Logging helper
-        $helper = new object();
-        $helper->firstname = $firstname;
-        $helper->lastname = $lastname;
+        // Logging helper.
+        $helper = array();
+        $helper['firstname'] = $firstname;
+        $helper['lastname'] = $lastname;
         
         $msg = $this->logging_helper($helper);
                 
@@ -144,7 +142,7 @@ class auth_plugin_eek extends auth_plugin_base {
             $user = new Object();
             $user->auth = $type;
             $user->username = $username;
-            $user->password = $password;
+            $user->password = ($type == 'manual' ? hash_internal_user_password($password) : $password);
             $user->idnumber = $isikid; // This or some new field...
             $user->firstname = $firstname;
             $user->lastname = $lastname;
@@ -158,7 +156,7 @@ class auth_plugin_eek extends auth_plugin_base {
             $user->timecreated = time();
 
             if ($user->id = $DB->insert_record('user', $user)) {
-                //Success.. Maybe send an email notification upon creation?
+                // Success.. Maybe send an email notification upon creation?
                 $this->notice_msg .= get_string('auth_eek_user_created', 'auth_eek', $msg).'<br />';
                 return $user;
             } else {
@@ -166,19 +164,26 @@ class auth_plugin_eek extends auth_plugin_base {
                 return $this->error_msg;
             }
         } else {
-            //Update existing user
+            // Update existing user.
             $user = $DB->get_record('user', array('idnumber' => $isikid, 'confirmed' => 1, 'deleted' => 0));
             if (!$user) {
-                //If cant find user by idnumber
+                // If cant find user by idnumber.
                 $user = $DB->get_record('user', array('username' => $username, 'confirmed' => 1, 'deleted' => 0));
             }
-            /*Fields to be updated..*/
+            
+            if (!$user->id) {
+                // Could not find user with idnumber nor username.
+                $this->error_msg .= get_string('auth_eek_user_update_failed', 'auth_eek', $msg).'<br />';
+                return $this->error_msg;
+            }
+            
+            // Fields to be updated.
             $user->firstname = $firstname;
             $user->lastname = $lastname;
             $user->country = $country;
             $user->city = $city;
             $user->timemodified = time();
-
+            
             if ($user->id = $DB->update_record('user', $user)) {
                 $this->notice_msg .= get_string('auth_eek_user_updated', 'auth_eek', $msg).'<br />';
                 return $user;
@@ -190,7 +195,7 @@ class auth_plugin_eek extends auth_plugin_base {
     }
     
     /**
-     * Synchronize groups (add,delete)
+     * Synchronize groups (add,delete).
      * 
      * @param type $courseid
      * @param type $groups
@@ -198,9 +203,9 @@ class auth_plugin_eek extends auth_plugin_base {
     function syncgroups($courseid, $groups) {
         global $DB;
         
-        $course = $DB->get_record('course', array('id' => $courseid)); //get course data
+        $course = $DB->get_record('course', array('id' => $courseid)); // Get course data.
 
-        //First we check existing groups and delete unused/empty groups
+        // First we check existing groups and delete unused/empty groups.
         $allgroups = groups_get_all_groups($course->id, 0, 0, 'id, idnumber');
 
         foreach ($allgroups as $key => $value) {
@@ -218,10 +223,10 @@ class auth_plugin_eek extends auth_plugin_base {
             }
         }
 
-        //Now lets create new groups if neccessary..
+        // Now lets create new groups if neccessary..
         foreach($groups as $key => $value) {
             
-            cache_helper::invalidate_by_definition('core', 'groupdata', array(), array($course->id)); //Clear group cache
+            cache_helper::invalidate_by_definition('core', 'groupdata', array(), array($course->id)); // Clear group cache.
             
             $groupbyidnumber = groups_get_group_by_idnumber($course->id, $key);
             
@@ -244,30 +249,28 @@ class auth_plugin_eek extends auth_plugin_base {
     }
     
     /**
-     * Synchronize course members
+     * Synchronize course members.
      * 
      * @global type $DB
      * @param type $courseid
      * @param type $members
-     * @param type $group
+     * @param type $groupid
      * @return type
      */
-    function synccoursemembers($courseid, $members) {
+    function synccoursemembers($courseid, $members, $groupid = '') {
         global $DB;
         
-        $members = unserialize($members);
-        
-        $course = $DB->get_record('course', array('id' => $courseid)); //get course data
+        $course = $DB->get_record('course', array('id' => $courseid)); // Get course data.
         
         if (!$course) {
-            //Course does not exist!
+            // Course does not exist!
             $this->error_msg .= get_string('auth_eek_course_missing', 'auth_eek').'<br />';
             return $this->error_msg;
         }
         
         $eek_plugin = new enrol_eek_plugin();        
         if (!$DB->record_exists('enrol', array('courseid'=>$course->id, 'enrol'=>'eek'))) {
-            //Only one instance allowed, sorry
+            // Only one instance allowed, sorry.
             $eek_plugin->add_instance($course);
         }
 
@@ -276,31 +279,32 @@ class auth_plugin_eek extends auth_plugin_base {
         $role = $DB->get_record('role', array('shortname'=>'student'), '*', MUST_EXIST);        
         $processed_users = array();
 
-        //Enrol users
+        // Enrol users.
         foreach($members as $key => $value) {
-            $user = $DB->get_record('user', array('idnumber' => $value->idnumber, 'deleted' => '0'));
+
+            $user = $DB->get_record('user', array('idnumber' => $value['idnumber'], 'deleted' => '0'));
             
-            $msg = $this->logging_helper($value);
+            $msg = $this->logging_helper($value, $groupid);
             
             if (!$user) {
-                if (empty($value->email)) {
-                    //Email missing
+                if (empty($value['email'])) {
+                    // Email missing.
                     $this->error_msg .= get_string('auth_eek_email_missing', 'auth_eek', $msg).'<br />';
                     continue;                        
-                } else if ($chk_email = $DB->get_record('user', array('email' => $value->email, 'deleted' => '0'))) {
-                    //Preventing duplicate account creaton if email or identic idnumber(isikukood) already existing in moodle base
+                } else if ($chk_email = $DB->get_record('user', array('email' => $value['email'], 'deleted' => '0'))) {
+                    // Preventing duplicate account creaton if email or identic idnumber(isikukood) already existing in moodle base.
                     $this->error_msg .= get_string('auth_eek_email_in_use', 'auth_eek', $msg).'<br />';
                     continue;
                 }                
-                $udata = $this->syncuser($value->idnumber, $value->type, $value->username, $value->password, $value->firstname, $value->lastname, $value->email, $value->country, $value->city, $value->deleted);
+                $udata = $this->syncuser($value['idnumber'], $value['type'], $value['username'], $value['password'], $value['firstname'], $value['lastname'], $value['email'], $value['country'], $value['city'], $value['deleted']);
                 
                 if ($udata) {
                     $eek_plugin->enrol_user($instance, $udata->id, $role->id, 0, 0, ENROL_USER_ACTIVE);
                     $this->notice_msg .= get_string('auth_eek_user_enrolled', 'auth_eek', $msg).'<br />';
-                    //Add to group if required
-                    if (!empty($value->group)) {
-                        //add user to group if group exists
-                        $groupinfo = groups_get_group_by_idnumber($course->id, $value->group);
+                    // Add to group if required.
+                    if (!empty($groupid)) {
+                        // Add user to group if group exists.
+                        $groupinfo = groups_get_group_by_idnumber($course->id, $groupid);
                         if (!empty($groupinfo)) {
                             if (groups_add_member($groupinfo->id, $udata->id)) {
                                 $this->notice_msg .= get_string('auth_eek_group_user_add', 'auth_eek', $msg).'<br />';
@@ -312,13 +316,13 @@ class auth_plugin_eek extends auth_plugin_base {
                     continue;
                 }
             } else {
-                if (!is_enrolled($context, $user)) {                    
+                if (!is_enrolled($context, $user)) {
                     $eek_plugin->enrol_user($instance, $user->id, $role->id, 0, 0, ENROL_USER_ACTIVE);
                     $this->notice_msg .= get_string('auth_eek_user_enrolled', 'auth_eek', $msg).'<br />';
-                    //Add to group if required
-                    if (!empty($value->group)) {
-                        //add user to group if group exists
-                        $groupinfo = groups_get_group_by_idnumber($course->id, $value->group);
+                    // Add to group if required.
+                    if (!empty($groupid)) {
+                        // Add user to group if group exists.
+                        $groupinfo = groups_get_group_by_idnumber($course->id, $groupid);
                         if (!empty($groupinfo)) {
                             if (groups_add_member($groupinfo->id, $user->id)) {
                                 $this->notice_msg .= get_string('auth_eek_group_user_add', 'auth_eek', $msg).'<br />';
@@ -326,10 +330,10 @@ class auth_plugin_eek extends auth_plugin_base {
                         }
                     }
                 } else {
-                    //Add to group if is already enrolled but not in group
-                    if (!empty($value->group)) {
-                        //add user to group if group exists
-                        $groupinfo = groups_get_group_by_idnumber($course->id, $value->group);
+                    // Add to group if is already enrolled but not in group.
+                    if (!empty($groupid)) {
+                        // Add user to group if group exists.
+                        $groupinfo = groups_get_group_by_idnumber($course->id, $groupid);
                         if (!empty($groupinfo) && !groups_is_member($groupinfo->id, $user->id)) {
                             if (groups_add_member($groupinfo->id, $user->id)) {
                                 $this->notice_msg .= get_string('auth_eek_group_user_add', 'auth_eek', $msg).'<br />';
@@ -338,20 +342,24 @@ class auth_plugin_eek extends auth_plugin_base {
                     }
                 }
             }
-            array_push($processed_users, $value->idnumber);
+            array_push($processed_users, $value['idnumber']);
         }
 
-        //Unenrol and Sync users with SIS
+        // Unenrol and Sync users with SIS.
         $enrolled_users = $this->eek_enrolled_users($role, $context, 'enrol_eek');
 
-        foreach ($enrolled_users as $key => $value) {      
-            $msg = $this->logging_helper($value);
+        foreach ($enrolled_users as $key => $value) {
+            // Logging helper.
+            $helper = array();
+            $helper['firstname'] = $value->firstname;
+            $helper['lastname'] = $value->lastname;            
+            $msg = $this->logging_helper($helper);
+            
             if (!in_array($value->idnumber, $processed_users)) {
                 $eek_plugin->unenrol_user($instance, $value->id);
                 $this->notice_msg .= get_string('auth_eek_user_unenrolled', 'auth_eek', $msg).'<br />';
             }
         }
-        
         return $this->error_msg.$this->notice_msg;
     }
     
@@ -370,7 +378,7 @@ class auth_plugin_eek extends auth_plugin_base {
     }
     
     /**
-     * Get a users "Course Total" grade
+     * Get a users "Course Total" grade.
      * 
      * @global type $DB
      * @param type $courseid
@@ -380,10 +388,10 @@ class auth_plugin_eek extends auth_plugin_base {
     function getoutcome($courseid, $isikid) {
         global $DB;
         
-        $user = $DB->get_record('user', array('idnumber' => $isikid, 'deleted' => '0')); // Moodle user object
-        $course = $DB->get_record('course', array('id' => $courseid)); //get course data
+        $user = $DB->get_record('user', array('idnumber' => $isikid, 'deleted' => '0')); // Moodle user object.
+        $course = $DB->get_record('course', array('id' => $courseid)); // Get course data.
         
-        $grade = grade_get_course_grade($user->id, $course->id); // User "Course Total" grade
+        $grade = grade_get_course_grade($user->id, $course->id); // User "Course Total" grade.
         
         $usergrade = new Object();
         $usergrade->grade = $grade->grade;
@@ -393,7 +401,7 @@ class auth_plugin_eek extends auth_plugin_base {
     }
     
     /**
-     * Get all "Course Total" grades from a course
+     * Get all "Course Total" grades from a course.
      * 
      * @global type $DB
      * @param type $courseid
@@ -402,7 +410,7 @@ class auth_plugin_eek extends auth_plugin_base {
     function getoutcomes($courseid) {
         global $DB;
         
-        $course = $DB->get_record('course', array('id' => $courseid)); // Get course data
+        $course = $DB->get_record('course', array('id' => $courseid)); // Get course data.
 
         if (!$context = context_course::instance($course->id)) {
             return false;
@@ -430,7 +438,7 @@ class auth_plugin_eek extends auth_plugin_base {
         
         foreach($users as $user) {
             
-            $grade = grade_get_course_grade($user->id, $course->id); // User "Course Total" grade
+            $grade = grade_get_course_grade($user->id, $course->id); // User "Course Total" grade.
 
             $grades = new Object();
             $grades->uid = $user->id;
