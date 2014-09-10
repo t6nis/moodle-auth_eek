@@ -32,6 +32,7 @@ $string['auth_eek_user_updated'] = 'User {$a->firstname} {$a->lastname} has been
 $string['auth_eek_user_update_failed'] = 'Failed to update user {$a->firstname} {$a->lastname} details!';
 $string['auth_eek_user_enrolled'] = 'User {$a->firstname} {$a->lastname} enrolled to course.';
 $string['auth_eek_user_unenrolled'] = 'User {$a->firstname} {$a->lastname} unenrolled from course.';
+$string['auth_eek_user_missing'] = 'User with ID {$a->idnumber} is missing from Moodle!';
 $string['auth_eek_group_created'] = 'Group {$a->name} has been created!';
 $string['auth_eek_group_creation_failed'] = 'Failed to create group {$a->name}';
 $string['auth_eek_group_deleted'] = 'Group {$a->name} has been deleted!';

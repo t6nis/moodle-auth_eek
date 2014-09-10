@@ -70,7 +70,23 @@ class auth_plugin_eek extends auth_plugin_base {
         $str->lastname = $user['lastname'];
         $str->group = (empty($group) ? '' : $group);
         return $str;
-    }  
+    }
+    
+    /**
+     * Check if user exists in Moodle by isikid.
+     * 
+     * @global type $DB
+     * @param type $id
+     * @return boolean
+     */
+    function userexists($id) {
+        global $DB;
+        
+        if ($DB->record_exists('user', array('idnumber'=>$id, 'confirmed' => 1, 'deleted' => 0))) {
+            return true;
+        }
+        return false;
+    }
     
     /**
      * Find all user assignemnt of users for this role, on this context.
@@ -257,7 +273,7 @@ class auth_plugin_eek extends auth_plugin_base {
      * @param type $groupid
      * @return type
      */
-    function synccoursemembers($courseid, $members, $groupid = '') {
+    function synccoursemembers($courseid, $members, $groupid = '', $userdetails = false) {
         global $DB;
         
         $course = $DB->get_record('course', array('id' => $courseid)); // Get course data.
@@ -280,42 +296,24 @@ class auth_plugin_eek extends auth_plugin_base {
         $processed_users = array();
 
         // Enrol users.
-        foreach($members as $key => $value) {
-
-            $user = $DB->get_record('user', array('idnumber' => $value['idnumber'], 'deleted' => '0'));
-            
-            $msg = $this->logging_helper($value, $groupid);
-            
-            if (!$user) {
-                if (empty($value['email'])) {
-                    // Email missing.
-                    $this->error_msg .= get_string('auth_eek_email_missing', 'auth_eek', $msg).'<br />';
-                    continue;                        
-                } else if ($chk_email = $DB->get_record('user', array('email' => $value['email'], 'deleted' => '0'))) {
-                    // Preventing duplicate account creaton if email or identic idnumber(isikukood) already existing in moodle base.
-                    $this->error_msg .= get_string('auth_eek_email_in_use', 'auth_eek', $msg).'<br />';
-                    continue;
-                }                
-                $udata = $this->syncuser($value['idnumber'], $value['type'], $value['username'], $value['password'], $value['firstname'], $value['lastname'], $value['email'], $value['country'], $value['city'], $value['deleted']);
+        if (!$userdetails) {
+            foreach($members as $value) {
+                $user = $DB->get_record('user', array('idnumber' => $value, 'deleted' => '0'));
                 
-                if ($udata) {
-                    $eek_plugin->enrol_user($instance, $udata->id, $role->id, 0, 0, ENROL_USER_ACTIVE);
-                    $this->notice_msg .= get_string('auth_eek_user_enrolled', 'auth_eek', $msg).'<br />';
-                    // Add to group if required.
-                    if (!empty($groupid)) {
-                        // Add user to group if group exists.
-                        $groupinfo = groups_get_group_by_idnumber($course->id, $groupid);
-                        if (!empty($groupinfo)) {
-                            if (groups_add_member($groupinfo->id, $udata->id)) {
-                                $this->notice_msg .= get_string('auth_eek_group_user_add', 'auth_eek', $msg).'<br />';
-                            }
-                        }
-                    }
-                } else {
-                    $this->error_msg .= get_string('auth_eek_user_creation_failed', 'auth_eek', $msg).'<br />';
+                if (!$user) {
+                    // Extra logging helper. We dont have any firstname or lastname to return, just isikid..
+                    $log = new stdClass();
+                    $log->idnumber = $value;
+                    $this->error_msg .= get_string('auth_eek_user_missing', 'auth_eek', $log);
                     continue;
-                }
-            } else {
+                }    
+                
+                // Logging helper.
+                $helper = array();
+                $helper['firstname'] = $user->firstname;
+                $helper['lastname'] = $user->lastname;
+                $msg = $this->logging_helper($helper, $groupid);
+                
                 if (!is_enrolled($context, $user)) {
                     $eek_plugin->enrol_user($instance, $user->id, $role->id, 0, 0, ENROL_USER_ACTIVE);
                     $this->notice_msg .= get_string('auth_eek_user_enrolled', 'auth_eek', $msg).'<br />';
@@ -341,10 +339,75 @@ class auth_plugin_eek extends auth_plugin_base {
                         }
                     }
                 }
+                array_push($processed_users, $value);
             }
-            array_push($processed_users, $value['idnumber']);
-        }
+        } else {
+            foreach($members as $key => $value) {
 
+                $user = $DB->get_record('user', array('idnumber' => $value['idnumber'], 'deleted' => '0'));
+
+                $msg = $this->logging_helper($value, $groupid);
+
+                if (!$user) {
+                    if (empty($value['email'])) {
+                        // Email missing.
+                        $this->error_msg .= get_string('auth_eek_email_missing', 'auth_eek', $msg).'<br />';
+                        continue;                        
+                    } else if ($chk_email = $DB->get_record('user', array('email' => $value['email'], 'deleted' => '0'))) {
+                        // Preventing duplicate account creaton if email or identic idnumber(isikukood) already existing in moodle base.
+                        $this->error_msg .= get_string('auth_eek_email_in_use', 'auth_eek', $msg).'<br />';
+                        continue;
+                    }                
+                    $udata = $this->syncuser($value['idnumber'], $value['type'], $value['username'], $value['password'], $value['firstname'], $value['lastname'], $value['email'], $value['country'], $value['city'], $value['deleted']);
+
+                    if ($udata) {
+                        $eek_plugin->enrol_user($instance, $udata->id, $role->id, 0, 0, ENROL_USER_ACTIVE);
+                        $this->notice_msg .= get_string('auth_eek_user_enrolled', 'auth_eek', $msg).'<br />';
+                        // Add to group if required.
+                        if (!empty($groupid)) {
+                            // Add user to group if group exists.
+                            $groupinfo = groups_get_group_by_idnumber($course->id, $groupid);
+                            if (!empty($groupinfo)) {
+                                if (groups_add_member($groupinfo->id, $udata->id)) {
+                                    $this->notice_msg .= get_string('auth_eek_group_user_add', 'auth_eek', $msg).'<br />';
+                                }
+                            }
+                        }
+                    } else {
+                        $this->error_msg .= get_string('auth_eek_user_creation_failed', 'auth_eek', $msg).'<br />';
+                        continue;
+                    }
+                } else {
+                    if (!is_enrolled($context, $user)) {
+                        $eek_plugin->enrol_user($instance, $user->id, $role->id, 0, 0, ENROL_USER_ACTIVE);
+                        $this->notice_msg .= get_string('auth_eek_user_enrolled', 'auth_eek', $msg).'<br />';
+                        // Add to group if required.
+                        if (!empty($groupid)) {
+                            // Add user to group if group exists.
+                            $groupinfo = groups_get_group_by_idnumber($course->id, $groupid);
+                            if (!empty($groupinfo)) {
+                                if (groups_add_member($groupinfo->id, $user->id)) {
+                                    $this->notice_msg .= get_string('auth_eek_group_user_add', 'auth_eek', $msg).'<br />';
+                                }
+                            }
+                        }
+                    } else {
+                        // Add to group if is already enrolled but not in group.
+                        if (!empty($groupid)) {
+                            // Add user to group if group exists.
+                            $groupinfo = groups_get_group_by_idnumber($course->id, $groupid);
+                            if (!empty($groupinfo) && !groups_is_member($groupinfo->id, $user->id)) {
+                                if (groups_add_member($groupinfo->id, $user->id)) {
+                                    $this->notice_msg .= get_string('auth_eek_group_user_add', 'auth_eek', $msg).'<br />';
+                                }
+                            }
+                        }
+                    }
+                }
+                array_push($processed_users, $value['idnumber']);
+            }
+        }
+        
         // Unenrol and Sync users with SIS.
         $enrolled_users = $this->eek_enrolled_users($role, $context, 'enrol_eek');
 
