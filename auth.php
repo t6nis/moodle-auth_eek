@@ -40,6 +40,14 @@ class auth_plugin_eek extends auth_plugin_base {
     private $error_msg = '';
     
     /**
+     * Constructor.
+     */
+    function __construct() {
+        global $CFG;
+        require_once($CFG->libdir.'/adodb/adodb.inc.php');
+    }
+    
+    /**
      * Init.
      */
     function auth_plugin_eek() {
@@ -521,7 +529,18 @@ class auth_plugin_eek extends auth_plugin_base {
                 if ($usertologin !== false) {
                     // User exists in Moodle lets check if SSO is up in SIS?
                     // Queries come here...
+                    $authdb = $this->db_init();
+                    print_r($authdb);
+                    /*$rs = $authdb->Execute("SELECT *
+                                              FROM authsession
+                                             WHERE username = '".$username."' AND authbase = '###' AND status = '##' ");
                     
+                    if (!$rs) {
+                        $authdb->Close();
+                        debugging(get_string('auth_dbcantconnect','auth_db'));
+                        return false;
+                    }*/
+
                     // If queries work out user should be logged in.
                     $USER = complete_user_login($usertologin);                    
                     // Redirect to correct urls.
@@ -533,6 +552,24 @@ class auth_plugin_eek extends auth_plugin_base {
                 }
             }
         }
-
     }
+    
+    /**
+     * Connect to external database.
+     *
+     * @return ADOConnection
+     */
+    function db_init() {
+        // Connect to the external database (forcing new connection).
+        $authdb = ADONewConnection('mysqli');
+        //if (!empty($this->config->debugauthdb)) {
+            $authdb->debug = true;
+            ob_start(); //Start output buffer to allow later use of the page headers.
+        //}
+        $authdb->Connect('###', '###', '###', '###', true);
+        $authdb->SetFetchMode(ADODB_FETCH_ASSOC);
+
+        return $authdb;
+    }
+    
 }
