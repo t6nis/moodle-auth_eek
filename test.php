@@ -1,6 +1,7 @@
 <?php 
 require_once dirname(dirname(dirname(__FILE__))) . '/config.php';
 /* Generate users */
+
 function generate_users($count = 1, $rand = true, $group = false) {
     
     $users = array();    
@@ -59,8 +60,8 @@ function api_actions($action, $vars) {
         switch($action) {
             case 'synccoursemembers':
                 $members = generate_users(3, true);
-                $eekauth->syncgroups($vars['courseid'], array(1 => 'grupp 1', 2 => 'grupp 2', 3 => 'grupp 3'));
-                $result = $eekauth->synccoursemembers($vars['courseid'], $members, 2);
+                $eekauth->syncgroups($vars['courseid'], array(1 => 'grupp 1'));
+                $result = $eekauth->synccoursemembers($vars['courseid'], $members, '', true);
                 break;
             case 'getoutcome':
                 $result = $eekauth->getoutcome($vars['courseid'], $vars['useridnumber']);
@@ -92,6 +93,7 @@ if (isset($_POST['usercount']) || isset($_POST['random'])) {
 
 /* POST AREA */
 print_r($_POST);
+
 print_r('<br />');
 if (isset($_POST['get_grade'])) {
     $vars = $_POST;
@@ -107,8 +109,41 @@ if (isset($_POST['get_grade'])) {
     print_r($result);
 } else if (isset($_POST['ssologin'])) {
     $vars = $_POST;
-    $result = api_actions('ssologin', $vars);
-    print_r($result);
+    /*
+    $url = 'http://178.62.252.7/moodle27/login/index.php';
+    $agent = $_SERVER["HTTP_USER_AGENT"];
+    $username = 'user';
+    $ckfile = tempnam ("/tmp", "CURLMOODCOOKIE");
+
+
+    //set POST variables
+    $fields_string = 'username='.$username.'&password=test';
+    rtrim($fields_string, '&');
+    echo $fields_string.'
+    ';
+
+    //open connection
+    $ch = curl_init();
+    //set the url, number of POST vars, POST data
+    curl_setopt($ch,CURLOPT_URL, $url);
+    curl_setopt($ch,CURLOPT_POST, 1);
+    curl_setopt($ch,CURLOPT_POSTFIELDS, $fields_string);
+    curl_setopt($ch,CURLOPT_COOKIEJAR, $ckfile);
+    curl_setopt($ch,CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch,CURLOPT_FOLLOWLOCATION, true );
+    curl_setopt($ch,CURLOPT_AUTOREFERER, true );
+
+    //execute post
+    $content = curl_exec($ch);
+    $response = curl_getinfo( $ch );
+    //close connection
+    curl_close($ch);
+    echo 'response=';
+    print_r($response);
+    echo 'content='.print_r($_COOKIE);
+    setcookie('MDLUSERNAME', 'kala2', 0, '/');
+    print_r($_COOKIE);
+     * */
 }
 ?>
 <html>
@@ -152,6 +187,9 @@ if (isset($_POST['get_grade'])) {
                 <input type="text" name="username" value="" size="10">
                 <input type="submit" name="ssologin" value="Submit">
             </form>
+            gsdfgsdfg<br />
+            <a href="http://178.62.252.7/moodle27/login/index.php?auth=eek&username=bot213" target="_blank">GoTo MOodle</a><br />
+            <a href="http://178.62.252.7/moodle27/login/index.php?auth=eek&username=bot213&courseid=2" target="_blank">GoTo Course</a>
         </div>
     </body>
 </html>

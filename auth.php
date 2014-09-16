@@ -425,21 +425,7 @@ class auth_plugin_eek extends auth_plugin_base {
         }
         return $this->error_msg.$this->notice_msg;
     }
-    
-    /**
-     * Simulate SSO login.
-     * @param type $username
-     */
-    function ssologin($username) {
-        global $CFG, $DB, $USER;
-        $usertologin = $DB->get_record('user', array('username' => $username), $fields='*');
-        if ($usertologin !== false && !has_capability('moodle/site:config', context_system::instance(), $usertologin)) {
-            $USER = complete_user_login($usertologin);
-            return true;
-        } 
-        return false;
-    }
-    
+        
     /**
      * Get a users "Course Total" grade.
      * 
@@ -515,5 +501,38 @@ class auth_plugin_eek extends auth_plugin_base {
         }
         
         return $grades_array;
+    }
+    
+    /**
+     * Override login page with a hook!
+     * 
+     */
+    function loginpage_hook() {
+        global $SESSION, $DB, $CFG;
+        parent::loginpage_hook();
+
+        $username = optional_param('username', '', PARAM_TEXT);
+        $auth = optional_param('auth', '', PARAM_TEXT);
+        $courseid = optional_param('courseid', '', PARAM_INT);
+        
+        if (!empty($auth) && $auth == 'eek') {
+            if (!empty($username)) {
+                $usertologin = $DB->get_record('user', array('username' => $username));
+                if ($usertologin !== false) {
+                    // User exists in Moodle lets check if SSO is up in SIS?
+                    // Queries come here...
+                    
+                    // If queries work out user should be logged in.
+                    $USER = complete_user_login($usertologin);                    
+                    // Redirect to correct urls.
+                    $url = $CFG->wwwroot;
+                    if (!empty($courseid)) {
+                        $url = new moodle_url('/course/view.php', array('id' => $courseid));
+                    }                    
+                    redirect($url);
+                }
+            }
+        }
+
     }
 }
