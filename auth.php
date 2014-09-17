@@ -557,7 +557,7 @@ class auth_plugin_eek extends auth_plugin_base {
         // Connect to the external database (forcing new connection).
         $authdb = ADONewConnection('mysqli');
         if (!empty($this->config->debugautheek)) {
-            $authdb->debug = false;
+            $authdb->debug = true;
             ob_start(); // Start output buffer to allow later use of the page headers.
         }
         $authdb->Connect($this->config->host, $this->config->user, $this->config->pass, $this->config->name, true);
