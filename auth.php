@@ -612,7 +612,7 @@ class auth_plugin_eek extends auth_plugin_base {
         }
 
         // Save settings.
-        set_config('debugautheek',   $config->debugauthdb,   'auth/eek');
+        set_config('debugautheek',   $config->debugautheek,   'auth/eek');
         set_config('host',          $config->host,          'auth/eek');
         set_config('type',          $config->type,          'auth/eek');
         set_config('name',          $config->name,          'auth/eek');
