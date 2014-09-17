@@ -542,6 +542,10 @@ class auth_plugin_eek extends auth_plugin_base {
                             $url = new moodle_url('/course/view.php', array('id' => $courseid));
                         }                    
                         redirect($url);
+                    } else {
+                        // User has no valid session.
+                        $rs->Close();
+                        $authdb->Close();                        
                     }
                 }
             }
