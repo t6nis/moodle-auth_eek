@@ -18,7 +18,7 @@
 /**
  * @package auth_eek
  * @copyright 2014 Codespot
- * @author TÃµnis Tartes <tonis.tartes@gmail.com>
+ * @author Tõnis Tartes <tonis.tartes@gmail.com>
  */
 
 if (!defined('MOODLE_INTERNAL')) {
@@ -45,16 +45,11 @@ class auth_plugin_eek extends auth_plugin_base {
     function __construct() {
         global $CFG;
         require_once($CFG->libdir.'/adodb/adodb.inc.php');
-    }
-    
-    /**
-     * Init.
-     */
-    function auth_plugin_eek() {
+        
         $this->authtype = 'eek';
         $this->config = get_config('auth/eek');
     }
-    
+        
     /**
      * User login must always return false.
      * 
@@ -528,27 +523,26 @@ class auth_plugin_eek extends auth_plugin_base {
                 $usertologin = $DB->get_record('user', array('username' => $username));
                 if ($usertologin !== false) {
                     // User exists in Moodle lets check if SSO is up in SIS?
-                    // Queries come here...
                     $authdb = $this->db_init();
-                    print_r($authdb);
-                    /*$rs = $authdb->Execute("SELECT *
-                                              FROM authsession
-                                             WHERE username = '".$username."' AND authbase = '###' AND status = '##' ");
-                    
+                    $rs = $authdb->Execute("SELECT status FROM {$this->config->table} WHERE username = '".$username."' AND authbase = 'yliop' AND status = '1'");
+
                     if (!$rs) {
                         $authdb->Close();
                         debugging(get_string('auth_dbcantconnect','auth_db'));
-                        return false;
-                    }*/
-
-                    // If queries work out user should be logged in.
-                    $USER = complete_user_login($usertologin);                    
-                    // Redirect to correct urls.
-                    $url = $CFG->wwwroot;
-                    if (!empty($courseid)) {
-                        $url = new moodle_url('/course/view.php', array('id' => $courseid));
-                    }                    
-                    redirect($url);
+                    }
+                    
+                    if (!$rs->EOF && !empty($rs->fields) && $rs->fields['status'] == 1) {
+                        $rs->Close();
+                        $authdb->Close();
+                        // If queries work out user should be logged in.
+                        $USER = complete_user_login($usertologin);                    
+                        // Redirect to correct urls.
+                        $url = $CFG->wwwroot;
+                        if (!empty($courseid)) {
+                            $url = new moodle_url('/course/view.php', array('id' => $courseid));
+                        }                    
+                        redirect($url);
+                    }
                 }
             }
         }
@@ -562,14 +556,71 @@ class auth_plugin_eek extends auth_plugin_base {
     function db_init() {
         // Connect to the external database (forcing new connection).
         $authdb = ADONewConnection('mysqli');
-        //if (!empty($this->config->debugauthdb)) {
-            $authdb->debug = true;
-            ob_start(); //Start output buffer to allow later use of the page headers.
-        //}
-        $authdb->Connect('###', '###', '###', '###', true);
+        if (!empty($this->config->debugautheek)) {
+            $authdb->debug = false;
+            ob_start(); // Start output buffer to allow later use of the page headers.
+        }
+        $authdb->Connect($this->config->host, $this->config->user, $this->config->pass, $this->config->name, true);
         $authdb->SetFetchMode(ADODB_FETCH_ASSOC);
 
         return $authdb;
     }
     
+    /**
+     * Prints a form for configuring this authentication plugin.
+     *
+     * This function is called from admin/auth.php, and outputs a full page with
+     * a form for configuring this plugin.
+     *
+     * @param stdClass $config
+     * @param array $err errors
+     * @param array $user_fields
+     * @return void
+     */
+    function config_form($config, $err, $user_fields) {
+        include 'config.html';
+    }
+
+    /**
+     * Processes and stores configuration data for this authentication plugin.
+     *
+     * @param srdClass $config
+     * @return bool always true or exception
+     */
+    function process_config($config) {
+        // set to defaults if undefined
+        if (!isset($config->debugautheek)) {
+            $config->debugautheek = 0;
+        }
+        if (!isset($config->host)) {
+            $config->host = 'localhost';
+        }
+        if (!isset($config->type)) {
+            $config->type = 'mysql';
+        }
+        if (!isset($config->name)) {
+            $config->name = '';
+        }
+        if (!isset($config->user)) {
+            $config->user = '';
+        }
+        if (!isset($config->pass)) {
+            $config->pass = '';
+        }
+        if (!isset($config->table)) {
+            $config->table = '';
+        }
+
+        // Save settings.
+        set_config('debugautheek',   $config->debugauthdb,   'auth/eek');
+        set_config('host',          $config->host,          'auth/eek');
+        set_config('type',          $config->type,          'auth/eek');
+        set_config('name',          $config->name,          'auth/eek');
+        set_config('user',          $config->user,          'auth/eek');
+        set_config('pass',          $config->pass,          'auth/eek');
+        set_config('table',         $config->table,         'auth/eek');
+
+        return true;
+    }
+
 }

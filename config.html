@@ -1,0 +1,133 @@
+<?php
+    global $OUTPUT;
+    // set to defaults if undefined
+    if (empty($config->debugautheek)) {
+        $config->debugautheek = 0;
+    }
+    if (!isset($config->host)) {
+        $config->host = 'localhost';
+    }
+    if (!isset($config->type)) {
+        $config->type = 'mysql';
+    }
+    if (!isset($config->name)) {
+        $config->name = '';
+    }
+    if (!isset($config->user)) {
+        $config->user = '';
+    }
+    if (!isset($config->pass)) {
+        $config->pass = '';
+    }
+    if (!isset($config->table)) {
+        $config->table = '';
+    }
+    
+    $yesno = array( get_string('no'), get_string('yes') );
+
+?>
+<table cellspacing="0" cellpadding="5" border="0">
+    
+<tr valign="top">
+    <td align="right"><label for="menudebugautheek"><?php print_string("auth_dbdebugautheek", "auth_eek") ?></label></td>
+    <td>
+        <?php echo html_writer::select($yesno, 'debugautheek', $config->debugautheek, false); ?>
+    </td>
+    <td><?php print_string("auth_dbdebugautheekhelp", "auth_eek") ?></td>
+</tr>
+
+<tr valign="top" class="required">
+    <td align="right"><label for="host"><?php print_string("auth_dbhost_key", "auth_eek") ?></label></td>
+    <td>
+        <input id="host" name="host" type="text" size="30" value="<?php echo $config->host?>" />
+        <?php
+
+        if (isset($err["host"])) {
+            echo $OUTPUT->error_text($err["host"]);
+        }
+
+        ?>
+    </td>
+    <td><?php print_string("auth_dbhost", "auth_eek") ?></td>
+</tr>
+
+<tr valign="top" class="required">
+    <td align="right"><label for="menutype"><?php print_string("auth_dbtype_key", "auth_eek") ?></label></td>
+    <td>
+    <?php  $dbtypes = array("access","ado_access", "ado", "ado_mssql", "borland_ibase", "csv", "db2", "fbsql", "firebird", "ibase", "informix72", "informix", "mssql", "mssql_n", "mssqlnative", "mysql", "mysqli", "mysqlt", "oci805", "oci8", "oci8po", "odbc", "odbc_mssql", "odbc_oracle", "oracle", "postgres64", "postgres7", "postgres", "proxy", "sqlanywhere", "sybase", "vfp");
+       foreach ($dbtypes as $dbtype) {
+           $dboptions[$dbtype] = $dbtype;
+       }
+       echo html_writer::select($dboptions, "type", $config->type, false);
+    ?>
+
+    </td>
+    <td>
+    <?php print_string("auth_dbtype","auth_eek") ?>
+    </td>
+</tr>
+
+
+<tr valign="top" class="required">
+    <td align="right"><label for="name"><?php print_string("auth_dbname_key", "auth_eek") ?></label></td>
+    <td>
+        <input id="name" name="name" type="text" size="30" value="<?php echo $config->name?>" />
+        <?php
+
+        if (isset($err["name"])) {
+            echo $OUTPUT->error_text($err["name"]);
+        }
+
+        ?>
+    </td>
+    <td><?php print_string("auth_dbname", "auth_eek") ?></td>
+</tr>
+
+<tr valign="top" class="required">
+    <td align="right"><label for="user"><?php print_string("auth_dbuser_key", "auth_eek") ?></label></td>
+    <td>
+        <input id="user" name="user" type="text" size="30" value="<?php echo $config->user?>" />
+        <?php
+
+        if (isset($err["user"])) {
+            echo $OUTPUT->error_text($err["user"]);
+        }
+
+        ?>
+    </td>
+    <td><?php print_string("auth_dbuser", "auth_eek") ?></td>
+</tr>
+
+<tr valign="top" class="required">
+    <td align="right"><label for="pass"><?php print_string("auth_dbpass_key", "auth_eek") ?></label></td>
+    <td>
+        <input id="pass" name="pass" type="password" size="30" value="<?php p($config->pass)?>" autocomplete="off"/>
+        <?php
+
+        if (isset($err["pass"])) {
+            echo $OUTPUT->error_text($err["pass"]);
+        }
+
+        ?>
+    </td>
+    <td>
+    <?php print_string("auth_dbpass", "auth_eek") ?>
+    </td>
+</tr>
+
+<tr valign="top" class="required">
+    <td align="right"><label for="table"><?php print_string("auth_dbtable_key", "auth_eek") ?></label></td>
+    <td>
+        <input id="table" name="table" type="text" size="30" value="<?php echo $config->table?>" />
+        <?php
+
+        if (isset($err["table"])) {
+            echo $OUTPUT->error_text($err["table"]);
+        }
+
+        ?>
+    </td>
+    <td><?php print_string("auth_dbtable", "auth_eek") ?></td>
+</tr>
+
+</table>
