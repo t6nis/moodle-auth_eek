@@ -5,9 +5,10 @@ require_once dirname(dirname(dirname(__FILE__))) . '/config.php';
 function generate_users($count = 1, $rand = true, $group = false) {
     
     $users = array();    
-    $gi = 0;
+    $gi = 1;
 
     for ($i = 1; $i <= $count; $i++) {
+        $gi = ceil($i / 10);
         $user = array();        
         $user['idnumber'] = ($rand == false ? $i : rand(0,1000));
         $user['type'] = 'manual';        
@@ -22,7 +23,7 @@ function generate_users($count = 1, $rand = true, $group = false) {
         $user['policyagreed'] = 1;
         $user['confirmed'] = 1;
         $user['timecreated'] = time();
-        $user['group'] = 1;        
+        $user['group'] = $gi;        
         $users[$i] = $user; 
     }
     
@@ -58,10 +59,17 @@ function api_actions($action, $vars) {
     $result = '';
     if (in_array($action, $actions)) {
         switch($action) {
-            case 'synccoursemembers':
-                $members = generate_users(3, true);
-                $eekauth->syncgroups($vars['courseid'], array(1 => 'grupp 1'));
+            case 'synccoursemembers':                
+                $eekauth->syncgroups($vars['courseid'], array(1 => 'grupp 1', 2 => 'grupp 2'));
+                for ($i = 1; $i < 3; $i++) {
+                    $members = generate_users(5, true);
+                    $result = $eekauth->synccoursemembers($vars['courseid'], $members, $i, true);
+                }
+                /*
+                $members = generate_users(5, true);
+                print_r($members);
                 $result = $eekauth->synccoursemembers($vars['courseid'], $members, '', true);
+                */
                 break;
             case 'getoutcome':
                 $result = $eekauth->getoutcome($vars['courseid'], $vars['useridnumber']);

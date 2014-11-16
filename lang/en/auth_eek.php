@@ -18,7 +18,7 @@
 /*
  * @package auth_eek
  * @copyright 2014 Codespot
- * @author Tõnis Tartes <tonis.tartes@gmail.com>
+ * @author Tonis Tartes <tonis.tartes@gmail.com>
  */
 
 $string['pluginname'] = 'EEK Sync';
@@ -35,6 +35,7 @@ $string['auth_eek_user_enrolled'] = 'User {$a->firstname} {$a->lastname} enrolle
 $string['auth_eek_user_unenrolled'] = 'User {$a->firstname} {$a->lastname} unenrolled from course.';
 $string['auth_eek_user_missing'] = 'User with ID {$a->idnumber} is missing from Moodle!';
 $string['auth_eek_group_created'] = 'Group {$a->name} has been created!';
+$string['auth_eek_user_unenrolment_failed_group'] = 'Could not unenrol user {$a->firstname} {$a->lastname} because is active member of group {$a->group}';
 $string['auth_eek_group_creation_failed'] = 'Failed to create group {$a->name}';
 $string['auth_eek_group_deleted'] = 'Group {$a->name} has been deleted!';
 $string['auth_eek_group_deletion_failed'] = 'Failed to delete group {$a->name}';

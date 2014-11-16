@@ -18,7 +18,7 @@
 /**
  * @package auth_eek
  * @copyright 2014 Codespot
- * @author Tõnis Tartes <tonis.tartes@gmail.com>
+ * @author Tï¿½nis Tartes <tonis.tartes@gmail.com>
  */
 
 if (!defined('MOODLE_INTERNAL')) {
@@ -412,20 +412,48 @@ class auth_plugin_eek extends auth_plugin_base {
         }
         
         // Unenrol and Sync users with SIS.
-        $enrolled_users = $this->eek_enrolled_users($role, $context, 'enrol_eek');
+        if (!$groupid) {
+            $enrolled_users = $this->eek_enrolled_users($role, $context, 'enrol_eek');
+            foreach ($enrolled_users as $key => $value) {
+                // Logging helper.
+                $helper = array();
+                $helper['firstname'] = $value->firstname;
+                $helper['lastname'] = $value->lastname;            
+                $msg = $this->logging_helper($helper);
 
-        foreach ($enrolled_users as $key => $value) {
-            // Logging helper.
-            $helper = array();
-            $helper['firstname'] = $value->firstname;
-            $helper['lastname'] = $value->lastname;            
-            $msg = $this->logging_helper($helper);
-            
-            if (!in_array($value->idnumber, $processed_users)) {
-                $eek_plugin->unenrol_user($instance, $value->id);
-                $this->notice_msg .= get_string('auth_eek_user_unenrolled', 'auth_eek', $msg).'<br />';
+                if (!in_array($value->idnumber, $processed_users)) {
+                    $groups = groups_get_all_groups($course->id, $value->id);
+                    if (empty($groups)) {
+                        $eek_plugin->unenrol_user($instance, $value->id);
+                        $this->notice_msg .= get_string('auth_eek_user_unenrolled', 'auth_eek', $msg).'<br />';
+                    } else {
+                        $groups = implode(',', array_keys($groups));
+                        // Logging helper.
+                        $helper = array();
+                        $helper['firstname'] = $value->firstname;
+                        $helper['lastname'] = $value->lastname;
+                        $msg = $this->logging_helper($helper, $groups);
+                        $this->notice_msg .= get_string('auth_eek_user_unenrolment_failed_group', 'auth_eek', $msg).'<br />';
+                    }
+                }
+            }
+        } else {
+            $groupinfo = groups_get_group_by_idnumber($course->id, $groupid);
+            $groupmembers = groups_get_members($groupinfo->id);
+            foreach ($groupmembers as $key => $value) {
+                // Logging helper.
+                $helper = array();
+                $helper['firstname'] = $value->firstname;
+                $helper['lastname'] = $value->lastname;            
+                $msg = $this->logging_helper($helper);
+
+                if (!in_array($value->idnumber, $processed_users)) {
+                    $eek_plugin->unenrol_user($instance, $value->id);
+                    $this->notice_msg .= get_string('auth_eek_user_unenrolled', 'auth_eek', $msg).'<br />';
+                }
             }
         }
+
         return $this->error_msg.$this->notice_msg;
     }
         
