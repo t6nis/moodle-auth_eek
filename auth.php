@@ -18,7 +18,7 @@
 /**
  * @package auth_eek
  * @copyright 2014 Codespot
- * @author T�nis Tartes <tonis.tartes@gmail.com>
+ * @author Tonis Tartes <tonis.tartes@gmail.com>
  */
 
 if (!defined('MOODLE_INTERNAL')) {
@@ -153,7 +153,7 @@ class auth_plugin_eek extends auth_plugin_base {
         $helper['lastname'] = $lastname;
         
         $msg = $this->logging_helper($helper);
-                
+        echo $isikid;        
         if (!$DB->record_exists('user', array('username'=>$username, 'confirmed' => 1, 'deleted' => 0)) &&
         !$DB->record_exists('user', array('email'=>$email, 'confirmed' => 1, 'deleted' => 0)) &&
         !$DB->record_exists('user', array('idnumber'=>$isikid, 'confirmed' => 1, 'deleted' => 0))
@@ -200,6 +200,7 @@ class auth_plugin_eek extends auth_plugin_base {
             $user->firstname = $firstname;
             $user->lastname = $lastname;
             $user->country = $country;
+            $user->idnumber = $isikid;
             $user->city = $city;
             $user->timemodified = time();
             
@@ -552,7 +553,7 @@ class auth_plugin_eek extends auth_plugin_base {
                 if ($usertologin !== false) {
                     // User exists in Moodle lets check if SSO is up in SIS?
                     $authdb = $this->db_init();
-                    $rs = $authdb->Execute("SELECT status FROM {$this->config->table} WHERE username = '".$username."' AND authbase = 'yliop' AND status = '1'");
+                    $rs = $authdb->Execute("SELECT status FROM {$this->config->table} WHERE username = '".$username."' AND authbase IN ('yliop', 'tootaja2014') AND status = '1' AND valid>=NOW()");
 
                     if (!$rs) {
                         $authdb->Close();
